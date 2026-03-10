@@ -1,0 +1,26 @@
+name: "GHCR Cleanup"
+description: "Delete old container images from GHCR, keeping the most recent ones"
+
+inputs:
+  package-name:
+    description: "Package name (e.g. gorillawear-returnless)"
+    required: true
+  keep:
+    description: "Number of tagged versions to keep"
+    required: false
+    default: "10"
+  github-token:
+    description: "GitHub token with packages:delete permission"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Delete old package versions
+      uses: actions/delete-package-versions@v5
+      with:
+        package-name: ${{ inputs.package-name }}
+        package-type: container
+        min-versions-to-keep: ${{ inputs.keep }}
+        delete-only-untagged-versions: false
+        token: ${{ inputs.github-token }}
