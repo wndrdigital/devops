@@ -44,6 +44,18 @@ runs:
       shell: bash
       run: |
         sed -i "s|${{ inputs.image }}:latest|${{ inputs.image }}:${{ github.sha }}|g" ${{ inputs.k8s-dir }}/backend-deployment.yaml
+        if [ -f "${{ inputs.k8s-dir }}/migrate-job.yaml" ]; then
+          sed -i "s|${{ inputs.image }}:latest|${{ inputs.image }}:${{ github.sha }}|g" ${{ inputs.k8s-dir }}/migrate-job.yaml
+        fi
+
+    - name: Run database migrations
+      shell: bash
+      run: |
+        if [ -f "${{ inputs.k8s-dir }}/migrate-job.yaml" ]; then
+          kubectl delete job ${{ inputs.app-name }}-migrate -n ${{ inputs.namespace }} --ignore-not-found
+          kubectl apply -f ${{ inputs.k8s-dir }}/migrate-job.yaml
+          kubectl wait --for=condition=complete job/${{ inputs.app-name }}-migrate -n ${{ inputs.namespace }} --timeout=120s
+        fi
 
     - name: Apply manifests
       shell: bash
@@ -51,6 +63,10 @@ runs:
         kubectl apply -f ${{ inputs.k8s-dir }}/services.yaml
         kubectl apply -f ${{ inputs.k8s-dir }}/backend-deployment.yaml
         kubectl apply -f ${{ inputs.k8s-dir }}/ingress.yaml
+        if [ -f "${{ inputs.k8s-dir }}/queue-deployment.yaml" ]; then
+          sed -i "s|${{ inputs.image }}:latest|${{ inputs.image }}:${{ github.sha }}|g" ${{ inputs.k8s-dir }}/queue-deployment.yaml
+          kubectl apply -f ${{ inputs.k8s-dir }}/queue-deployment.yaml
+        fi
 
     - name: Wait for rollout
       shell: bash
