@@ -43,6 +43,12 @@ runs:
         username: ${{ github.actor }}
         password: ${{ inputs.github-token }}
 
+    - name: Write composer auth secret file
+      if: inputs.composer-auth != ''
+      shell: bash
+      run: |
+        echo '${{ inputs.composer-auth }}' > /tmp/composer_auth_secret
+
     - name: Build and push
       uses: docker/build-push-action@v6
       with:
@@ -52,5 +58,10 @@ runs:
         tags: |
           ${{ inputs.image }}:${{ github.sha }}
           ${{ inputs.image }}:latest
-        secrets: |
-          composer_auth=${{ inputs.composer-auth }}
+        secret-files: |
+          composer_auth=/tmp/composer_auth_secret
+
+    - name: Cleanup secret file
+      if: always()
+      shell: bash
+      run: rm -f /tmp/composer_auth_secret

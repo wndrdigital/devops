@@ -9,8 +9,12 @@ inputs:
     description: "Application/deployment name"
     required: true
   image:
-    description: "Full GHCR image name"
+    description: "Full GHCR image name for web"
     required: true
+  cli-image:
+    description: "Full GHCR image name for CLI (queue/migrate). Defaults to image value."
+    required: false
+    default: ""
   ghcr-pat:
     description: "GHCR Personal Access Token for image pull secret"
     required: true
@@ -38,15 +42,26 @@ runs:
 
     - name: Apply Infisical secret sync
       shell: bash
-      run: kubectl apply -f ${{ inputs.k8s-dir }}/infisical-secret.yaml
+      run: |
+        if [ -f "${{ inputs.k8s-dir }}/infisical-secret.yaml" ]; then
+          kubectl apply -f ${{ inputs.k8s-dir }}/infisical-secret.yaml
+        fi
 
     - name: Update image tags
       shell: bash
       run: |
-        sed -i "s|${{ inputs.image }}:latest|${{ inputs.image }}:${{ github.sha }}|g" ${{ inputs.k8s-dir }}/backend-deployment.yaml
-        if [ -f "${{ inputs.k8s-dir }}/migrate-job.yaml" ]; then
-          sed -i "s|${{ inputs.image }}:latest|${{ inputs.image }}:${{ github.sha }}|g" ${{ inputs.k8s-dir }}/migrate-job.yaml
+        CLI_IMAGE="${{ inputs.cli-image }}"
+        if [ -z "$CLI_IMAGE" ]; then
+          CLI_IMAGE="${{ inputs.image }}"
         fi
+
+        sed -i "s|${{ inputs.image }}:latest|${{ inputs.image }}:${{ github.sha }}|g" ${{ inputs.k8s-dir }}/backend-deployment.yaml
+
+        for f in migrate-job.yaml queue-deployment.yaml; do
+          if [ -f "${{ inputs.k8s-dir }}/$f" ]; then
+            sed -i "s|${CLI_IMAGE}:latest|${CLI_IMAGE}:${{ github.sha }}|g" ${{ inputs.k8s-dir }}/$f
+          fi
+        done
 
     - name: Run database migrations
       shell: bash
@@ -64,7 +79,6 @@ runs:
         kubectl apply -f ${{ inputs.k8s-dir }}/backend-deployment.yaml
         kubectl apply -f ${{ inputs.k8s-dir }}/ingress.yaml
         if [ -f "${{ inputs.k8s-dir }}/queue-deployment.yaml" ]; then
-          sed -i "s|${{ inputs.image }}:latest|${{ inputs.image }}:${{ github.sha }}|g" ${{ inputs.k8s-dir }}/queue-deployment.yaml
           kubectl apply -f ${{ inputs.k8s-dir }}/queue-deployment.yaml
         fi
 
