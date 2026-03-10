@@ -34,8 +34,10 @@ runs:
     - name: Write composer auth secret file
       if: inputs.composer-auth != ''
       shell: bash
+      env:
+        COMPOSER_AUTH: ${{ inputs.composer-auth }}
       run: |
-        echo '${{ inputs.composer-auth }}' > /tmp/composer_auth_secret
+        printenv COMPOSER_AUTH > /tmp/composer_auth_secret
 
     - name: Build and push
       uses: docker/build-push-action@v6
