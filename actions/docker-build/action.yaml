@@ -1,0 +1,50 @@
+name: "Docker Build & Push"
+description: "Build and push Docker image to GHCR"
+
+inputs:
+  image:
+    description: "Full GHCR image name (e.g. ghcr.io/wndrdigital/my-app)"
+    required: true
+  docker-username:
+    description: "Docker Hub username"
+    required: true
+  docker-password:
+    description: "Docker Hub password"
+    required: true
+  github-token:
+    description: "GitHub token for GHCR"
+    required: true
+  context:
+    description: "Docker build context"
+    required: false
+    default: "."
+  dockerfile:
+    description: "Path to Dockerfile"
+    required: false
+    default: "Dockerfile"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ inputs.docker-username }}
+        password: ${{ inputs.docker-password }}
+
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github-token }}
+
+    - name: Build and push
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.dockerfile }}
+        push: true
+        tags: |
+          ${{ inputs.image }}:${{ github.sha }}
+          ${{ inputs.image }}:latest
