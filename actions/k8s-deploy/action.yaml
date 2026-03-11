@@ -22,6 +22,10 @@ inputs:
     description: "Path to k8s manifests directory"
     required: false
     default: "k8s"
+  extra-manifests:
+    description: "Space-separated list of additional manifest files to apply (relative to k8s-dir). Image tags will be replaced using cli-image."
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -57,7 +61,7 @@ runs:
 
         sed -i "s|${{ inputs.image }}:latest|${{ inputs.image }}:${{ github.sha }}|g" ${{ inputs.k8s-dir }}/backend-deployment.yaml
 
-        for f in migrate-job.yaml queue-deployment.yaml; do
+        for f in migrate-job.yaml queue-deployment.yaml ${{ inputs.extra-manifests }}; do
           if [ -f "${{ inputs.k8s-dir }}/$f" ]; then
             sed -i "s|${CLI_IMAGE}:latest|${CLI_IMAGE}:${{ github.sha }}|g" ${{ inputs.k8s-dir }}/$f
           fi
@@ -81,6 +85,11 @@ runs:
         if [ -f "${{ inputs.k8s-dir }}/queue-deployment.yaml" ]; then
           kubectl apply -f ${{ inputs.k8s-dir }}/queue-deployment.yaml
         fi
+        for f in ${{ inputs.extra-manifests }}; do
+          if [ -f "${{ inputs.k8s-dir }}/$f" ]; then
+            kubectl apply -f ${{ inputs.k8s-dir }}/$f
+          fi
+        done
 
     - name: Wait for rollout
       shell: bash
